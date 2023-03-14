@@ -1,0 +1,17 @@
+```{r}
+
+library(cloc)
+
+
+```
+## Lint
+
+## Lines of Code
+
+```{r}
+
+cloc_pkg_md()
+
+
+
+```
