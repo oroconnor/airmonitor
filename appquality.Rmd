@@ -1,17 +1,27 @@
 ```{r}
 
 library(cloc)
-
+library(devtools)
+library (pkgstats)
 
 ```
-## Lint
+## Lintr
+
+Incorporated into Github actions
 
 ## Lines of Code
 
 ```{r}
 
-cloc_pkg_md()
+# cloc_pkg_md()
+# pkgstats(path = "./R")
+
+```
 
 
+## Test Coverage
 
+```{r}
+
+# test_coverage()
 ```
