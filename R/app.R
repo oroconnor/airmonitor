@@ -2,7 +2,6 @@
 # Version 1.1.0
 # This dashboard was built by Owen O'Connor and Tributary Data LLC
 # Questions? Email tributarydata@gmail.com
-
 library(shiny)
 library(shinythemes)
 library(httr)
@@ -14,25 +13,29 @@ library(plotly)
 library(lattice)
 
 
-#### nowcast functions ----------------------------------------------------------------------------
+# Nowcast functions --------------------------------------------------------
 
-# hour_munge function
+# Hour Munge function
 
 
 # takes the last 12 hours of data and creates 12 hourly concentration averages
 hour_munge <- function(
-    df # dataframe that contains the past 12 hours of PM observations. First column timestamp. Second column PM2.5,
-    # third column PM10
-    ) {
+    # dataframe that contains the past 12 hours of PM observations. First
+    # column timestamp, second column PM2.5, third column PM10
+    df) {
   most_recent_time <- max(df$time) # calculate most recent time in dataset
-  twelve_hours_ago <- most_recent_time - hours(12) # calculate 12 hours before that
+  # Calculate 12 hours before that
+  twelve_hours_ago <- most_recent_time - hours(12)
 
   df <- df %>%
     filter(
       time >= twelve_hours_ago
     ) %>%
     mutate(
-      time_from_recent = floor(as.numeric(as.duration(most_recent_time - time), "hours"))
+      time_from_recent = floor(as.numeric(
+        as.duration(most_recent_time - time),
+        "hours"
+      ))
     )
 
   # Round values on the edge that are 12 hours down into the "11th hour"
@@ -54,9 +57,11 @@ hour_munge <- function(
 
 #' @export
 nowcast <- function(
-    df # dataframe that contains the past 12 hours of PM observations. First column timestamp. Second column PM2.5
-    ) {
-  hourly_avgs <- hour_munge(df) # takes the last 12 hours of data and creates 12 hourly concentration averages
+    # dataframe that contains the past 12 hours of PM observations. First column
+    # timestamp. Second column PM2.5
+    df) {
+  # takes the last 12 hours of data and creates 12 hourly concentration averages
+  hourly_avgs <- hour_munge(df)
 
   range <- max(hourly_avgs$PM2.5) - min(hourly_avgs$PM2.5)
   scaled_rate_of_change <- range / max(hourly_avgs$PM2.5)
@@ -72,7 +77,8 @@ nowcast <- function(
       weights = (weight_factor^time_from_recent)
     )
 
-  nowcast_num <- sum(hourly_avgs_weighted$PM2.5) / sum(hourly_avgs_weighted$weights)
+  nowcast_num <- sum(hourly_avgs_weighted$PM2.5) /
+    sum(hourly_avgs_weighted$weights)
 
   nowcast_num <- trunc(nowcast_num * 10^2) / 10^2 # truncate to 2 decimal places
 
@@ -83,9 +89,11 @@ nowcast <- function(
 
 #' @export
 nowcast10 <- function(
-    df # dataframe that contains the past 12 hours of PM observations. First column timestamp. Second column PM2.5
-    ) {
-  hourly_avgs <- hour_munge(df) # takes the last 12 hours of data and creates 12 hourly concentration averages
+    # dataframe that contains the past 12 hours of PM observations.
+    # First column timestamp. Second column PM2.5
+    df) {
+  # takes the last 12 hours of data and creates 12 hourly concentration averages
+  hourly_avgs <- hour_munge(df)
 
   range <- max(hourly_avgs$PM10) - min(hourly_avgs$PM10)
   scaled_rate_of_change <- range / max(hourly_avgs$PM10)
@@ -101,16 +109,18 @@ nowcast10 <- function(
       weights = (weight_factor^time_from_recent)
     )
 
-  nowcast_num10 <- sum(hourly_avgs_weighted$PM10) / sum(hourly_avgs_weighted$weights)
+  nowcast_num10 <- sum(hourly_avgs_weighted$PM10) /
+    sum(hourly_avgs_weighted$weights)
 
-  nowcast_num10 <- trunc(nowcast_num10 * 10^2) / 10^2 # truncate to 2 decimal places
+  # truncate to 2 decimal places
+  nowcast_num10 <- trunc(nowcast_num10 * 10^2) / 10^2
 
 
   return(nowcast_num10)
 }
 
 
-#### API Calls -------------------------------------------------------------------------
+#### API Calls -----------------------------------------------------------------
 
 ## QuantAQ API:
 
@@ -136,13 +146,17 @@ get_request <- function(url, api_key, params = NULL) {
 }
 
 
-# data_points=5000
-get_data <- function(serial_number, data_points = NULL, start_date = NULL, end_date = NULL) {
+# Data Points equals 5000
+get_data <- function(serial_number, data_points = NULL, start_date = NULL,
+                     end_date = NULL) {
   # this will save all the data
   main_data <- c()
 
   # adding serial number in endpoint
-  data_endpoint_with_serial <- paste0("/devices", "/", serial_number, data_endpoint)
+  data_endpoint_with_serial <- paste0(
+    "/devices", "/", serial_number,
+    data_endpoint
+  )
 
   # data endpoint for a specific defined serial number
   url <- paste0(base_url, data_endpoint_with_serial)
@@ -150,7 +164,10 @@ get_data <- function(serial_number, data_points = NULL, start_date = NULL, end_d
   # adding date filter if its not null in parameters
   date_filter <- NULL
   if (all(!is.null(start_date) || !is.null(end_date))) {
-    date_filter <- paste0("timestamp_local,ge,", start_date, ";timestamp_local,le,", end_date)
+    date_filter <- paste0(
+      "timestamp_local,ge,", start_date,
+      ";timestamp_local,le,", end_date
+    )
   }
   # different parameters we are sending with request
   params <- list(
@@ -160,7 +177,7 @@ get_data <- function(serial_number, data_points = NULL, start_date = NULL, end_d
 
   # for multiple page scrape we add a loop
   index <- 1
-  repeat{
+  repeat {
     response <- get_request(url = url, api_key = api_key, params = params)
     response_data <- content(response, "parsed", encoding = "UTF-8")
     main_data <- c(main_data, response_data$data)
@@ -179,12 +196,16 @@ get_data <- function(serial_number, data_points = NULL, start_date = NULL, end_d
   return(json_data)
 }
 
-get_raw_data <- function(serial_number, data_points = NULL, start_date = NULL, end_date = NULL) {
+get_raw_data <- function(serial_number, data_points = NULL, start_date = NULL,
+                         end_date = NULL) {
   # this will save all the data
   main_raw_data <- c()
 
   # adding serial number in endpoint
-  raw_data_endpoint_with_serial <- paste0("/devices", "/", serial_number, raw_data_endpoint)
+  raw_data_endpoint_with_serial <- paste0(
+    "/devices", "/", serial_number,
+    raw_data_endpoint
+  )
 
   # data endpoint for a specific defined serial number
   url <- paste0(base_url, raw_data_endpoint_with_serial)
@@ -192,7 +213,10 @@ get_raw_data <- function(serial_number, data_points = NULL, start_date = NULL, e
   # adding date filter if its not null in parameters
   date_filter <- NULL
   if (all(!is.null(start_date) || !is.null(end_date))) {
-    date_filter <- paste0("timestamp_local,ge,", start_date, ";timestamp_local,le,", end_date)
+    date_filter <- paste0(
+      "timestamp_local,ge,", start_date,
+      ";timestamp_local,le,", end_date
+    )
   }
   # different parameters we are sending with request
   params <- list(
@@ -202,7 +226,7 @@ get_raw_data <- function(serial_number, data_points = NULL, start_date = NULL, e
 
   # for multiple page scrape we add a loop
   index <- 1
-  repeat{
+  repeat {
     response <- get_request(url = url, api_key = api_key, params = params)
     response_data <- content(response, "parsed", encoding = "UTF-8")
     main_raw_data <- c(main_raw_data, response_data$data)
@@ -238,10 +262,10 @@ webmasterk <- webmasterk %>%
     time = timestamp_local
   )
 
-pm2p5avg <- nowcast(webmasterk) # round(mean(webmasterk$PM2.5, na.rm = TRUE), digits = 2)
-pm10avg <- nowcast10(webmasterk) # round(mean(webmasterk$PM10,na.rm = TRUE), digits= 2)
+pm2p5avg <- nowcast(webmasterk)
+pm10avg <- nowcast10(webmasterk)
 
-#### Onset Weather Station API: ----------------------------------------------------------------------------
+#### Onset Weather Station API: ------------------------------------------------
 # authentication details
 
 get_access_token <- function(client_id, client_secret) {
@@ -252,7 +276,10 @@ get_access_token <- function(client_id, client_secret) {
   )
   auth_url <- "https://webservice.hobolink.com/ws/auth/token"
   #  payload
-  data <- paste0("grant_type=client_credentials&client_id=", client_id, "&client_secret=", client_secret)
+  data <- paste0(
+    "grant_type=client_credentials&client_id=", client_id,
+    "&client_secret=", client_secret
+  )
 
   auth_response <- httr::POST(
     url = auth_url,
@@ -273,7 +300,10 @@ generic_data_request <- function(token, user_id, params) {
   )
 
   response <- httr::GET(
-    url = paste0("https://webservice.hobolink.com/ws/data/file/JSON/user/", user_id),
+    url = paste0(
+      "https://webservice.hobolink.com/ws/data/file/JSON/user/",
+      user_id
+    ),
     httr::add_headers(.headers = headers),
     query = params
   )
@@ -290,7 +320,8 @@ generic_data_request <- function(token, user_id, params) {
   return(dataframe)
 }
 
-get_data_using_start_and_end_date <- function(token, user_id, logger, start_date_time, end_date_time) {
+get_data_w_start_and_end_date <- function(token, user_id, logger,
+                                              start_date_time, end_date_time) {
   #  authentication headers
   params <- list(
     `loggers` = logger,
@@ -334,8 +365,14 @@ wdata <- get_last_hours_data(token, user_id, logger, hours)
 
 
 
-timestamp <- c("1970-01-01 00:00:00", "1970-01-01 00:00:00", "1970-01-01 00:00:00", "1970-01-01 00:00:00")
-sensor_measurement_type <- c("Wind Direction", "Wind Speed", "Temperature", "RH")
+timestamp <- c(
+  "1970-01-01 00:00:00", "1970-01-01 00:00:00",
+  "1970-01-01 00:00:00", "1970-01-01 00:00:00"
+)
+sensor_measurement_type <- c(
+  "Wind Direction", "Wind Speed", "Temperature",
+  "RH"
+)
 si_value <- c(180, 10, 10, 50)
 
 
@@ -346,7 +383,8 @@ wdata <- wdata %>%
     timestamp = ymd_hms(timestamp)
   )
 
-# Here we are organizing the weather data into smaller dataframes that can be used easily by the plots
+# Here we are organizing the weather data into smaller dataframes that can be
+# used easily by the plots
 wddata <- wdata %>%
   filter(
     sensor_measurement_type == "Wind Direction"
@@ -406,7 +444,8 @@ ui <- fluidPage(
     includeCSS("../app.css"),
     HTML(
       # <!-- Global site tag (gtag.js) - Google Analytics -->
-      "<script async src='https://www.googletagmanager.com/gtag/js?id=G-E1XW5VZ9Z3'></script>
+      "<script async
+      src='https://www.googletagmanager.com/gtag/js?id=G-E1XW5VZ9Z3'></script>
                 <script>
                 window.dataLayer = window.dataLayer || [];
               function gtag(){dataLayer.push(arguments);}
@@ -418,11 +457,15 @@ ui <- fluidPage(
   ),
 
   # Application title
-  # titlePanel("Kingston NY Air Quality"),
-
   titlePanel(
     div(
-      column(width = 4, tags$a(href = "https://landairwater.bard.edu/projects/kaqi/", tags$img(src = "bcesh_logo.png", height = 50, width = 400))),
+      column(
+        width = 4,
+        tags$a(
+          href = "https://landairwater.bard.edu/projects/kaqi/",
+          tags$img(src = "bcesh_logo.png", height = 50, width = 400)
+        )
+      ),
       column(width = 8, h2("Kingston NY Air Quality"))
     ),
     windowTitle = "Kingston Particulate Matter"
@@ -430,9 +473,11 @@ ui <- fluidPage(
   sidebarLayout(
     sidebarPanel(
       helpText(
-        "The Bard College Center for Environmental Sciences and Humanities maintains
-               an air quality monitoring station on top of the Andy Murphy Neighborhood Center
-               at 467 Broadway in Kingston, NY. Here you can see the most recent Particulate Matter data from this sensor. ", tags$br(), tags$br(),
+        "The Bard College Center for Environmental Sciences and Humanities
+        maintains an air quality monitoring station on top of the Andy Murphy
+        Neighborhood Center at 467 Broadway in Kingston, NY. Here you can see
+        the most recent Particulate Matter data from this sensor. ",
+        tags$br(), tags$br(),
         "You can learn more information about the monitoring program ",
         tags$a(href = "https://landairwater.bard.edu/projects/kaqi/", "here."),
         tags$br(), tags$br(),
@@ -457,27 +502,39 @@ ui <- fluidPage(
             <tr style=color:black;background-color:rgb(255,255,0)>
             <td>Moderate</td>
             <td>12.1-35.4</td>
-            <td>Unusually sensitive people should consider reducing prolonged or heavy exertion.</td>
+            <td>Unusually sensitive people should consider reducing prolonged \
+            or heavy exertion.</td>
             </tr>
             <tr style=color:black;background-color:rgb(255,126,0)>
             <td>Unhealthy for Sensitive Groups</td>
             <td>35.5-55.4</td>
-            <td>People with heart or lung disease, older adults, children, and people of lower socioeconomic status should reduce prolonged or heavy exertion.</td>
+            <td>People with heart or lung disease, older adults, children, and \
+            people of lower socioeconomic status should reduce prolonged or \
+            heavy exertion.</td>
             </tr>
             <tr style=color:black;background-color:rgb(255,0,0)>
             <td>Unhealthy</td>
             <td>55.5-150.4</td>
-            <td>People with heart or lung disease, older adults, children, and people of lower socioeconomic status should avoid prolonged or heavy exertion; everyone else should reduce prolonged or heavy exertion.</td>
+            <td>People with heart or lung disease, older adults, children, and \
+            people of lower socioeconomic status should avoid prolonged or \
+            heavy exertion; everyone else should reduce prolonged or heavy \
+            exertion.</td>
             </tr>
             <tr style=background-color:rgb(143,63,151)>
             <td>Very Unhealthy</td>
             <td>150.5-250.4</td>
-            <td>People with heart or lung disease, older adults, children, and people of lower socioeconomic status should avoid all physical activity outdoors. Everyone else should avoid prolonged or heavy exertion.</td>
+            <td>People with heart or lung disease, older adults, children, and \
+            people of lower socioeconomic status should avoid all physical \
+            activity outdoors. Everyone else should avoid prolonged or heavy \
+            exertion.</td>
             </tr>
             <tr style=background-color:rgb(126,0,35)>
             <td>Hazardous</td>
             <td>250.5-500.4</td>
-            <td>Everyone should avoid all physical activity outdoors; people with heart or lung disease, older adults, children, and people of lower socioeconomic status should remain indoors and keep activity levels low.</td>
+            <td>Everyone should avoid all physical activity outdoors; people \
+            with heart or lung disease, older adults, children, and people of \
+            lower socioeconomic status should remain indoors and keep activity \
+            levels low.</td>
             </tr>
             </table>
             "), # end HTML
@@ -495,16 +552,14 @@ ui <- fluidPage(
               plotOutput("plot1", height = "275px"),
               htmlOutput("pm2p5avg"),
               textOutput("pm2p5_caution") %>%
-                tagAppendAttributes(class = "caution"),
-              # plotOutput("plot3") # windrose
+                tagAppendAttributes(class = "caution")
             ),
             column(
               6,
               plotOutput("plot2", height = "275px"),
               htmlOutput("pm10avg"),
               textOutput("pm10_caution") %>%
-                tagAppendAttributes(class = "caution"),
-              # plotlyOutput("plot4") # windspeed
+                tagAppendAttributes(class = "caution")
             )
           ), # End first fluidRow
           br(),
@@ -556,10 +611,18 @@ ui <- fluidPage(
   # FOOTER
   hr(),
   print("References:"), br(),
-  print("Particulate Matter monitor:"), tags$a(href = "https://assets.quant-aq.com/downloads/spec-sheets/modulair-pm.latest.pdf", "QuantAQ Modulair"), br(),
-  print("Weather Station:"), tags$a(href = "https://www.onsetcomp.com/datasheet/RX2100", "OnsetRX2100"), br(),
-  print("This dashboards PM concentrations and warnings are based off of the EPA's Nowcast calculation method."), br(),
-  print("More info on NowCast Reporting:"), tags$a(href = "https://www.airnow.gov/sites/default/files/2020-05/aqi-technical-assistance-document-sept2018.pdf", "Technical Assistance Document for the Reporting of Daily Air Quality ")
+  print("Particulate Matter monitor:"),
+  tags$a(href = "https://assets.quant-aq.com/downloads/spec-sheets/modulair-pm.\
+         latest.pdf", "QuantAQ Modulair"), br(),
+  print("Weather Station:"),
+  tags$a(href = "https://www.onsetcomp.com/datasheet/RX2100", "OnsetRX2100"),
+  br(),
+  print("This dashboards PM concentrations and warnings are based off of the \
+        EPA's Nowcast calculation method."), br(),
+  print("More info on NowCast Reporting:"),
+  tags$a(href = "https://www.airnow.gov/sites/default/files/2020-05/aqi-\
+         technical-assistance-document-sept2018.pdf", "Technical Assistance \
+         Document for the Reporting of Daily Air Quality ")
 ) # End fluidPage
 
 
@@ -608,7 +671,18 @@ server <- function(input, output) {
       need(FALSE, "No wind currently... Check back later. ")
     )
 
-    windRose(rose_df, paddle = FALSE, main = "Wind Direction - past hour", key.footer = expression("(m/s)"), par.settings = list(axis.text = list(col = "white"), par.main.text = list(col = "white", fontsize = 18), add.text = list(col = "white"), par.sub.text = list(col = "white", fontsize = 14), fontsize = list(text = 20)))
+    windRose(rose_df,
+      paddle = FALSE, main = "Wind Direction - past hour",
+      key.footer = expression("(m/s)"),
+      par.settings = list(
+        axis.text = list(col = "white"),
+        par.main.text = list(col = "white", fontsize = 18),
+        add.text = list(col = "white"), par.sub.text = list(
+          col = "white",
+          fontsize = 14
+        ), fontsize = list(text = 20)
+      )
+    )
   })
 
   # windspeed gauge
@@ -696,19 +770,26 @@ server <- function(input, output) {
   output$pm2.5Plot <- renderPlot({
     # Displays gentle error message if no variables are selected in checkbox
     shiny::validate(
-      need(input$variable != "", "Please select at least one variable to display")
+      need(input$variable != "", "Please select at least one \
+           variable to display")
     )
 
     # Time series point chart displaying data that user selects
     halfday_df() %>%
-      pivot_longer(starts_with("PM"), names_to = "Pollutant Class", values_to = "observation") %>%
+      pivot_longer(starts_with("PM"),
+        names_to = "Pollutant Class",
+        values_to = "observation"
+      ) %>%
       ggplot(aes(x = time, y = observation, color = `Pollutant Class`)) +
       geom_point() +
       scale_color_manual(values = c(
         "PM2.5" = "darkorange1",
         "PM10" = "dodger blue"
       )) +
-      scale_x_datetime(minor_breaks = NULL, date_breaks = "30 min", date_labels = "%b%e %l:%M %p") +
+      scale_x_datetime(
+        minor_breaks = NULL, date_breaks = "30 min",
+        date_labels = "%b%e %l:%M %p"
+      ) +
       labs(
         y = expression(Mass - (μg / ~ m^3)),
         x = NULL,
@@ -736,8 +817,6 @@ server <- function(input, output) {
     summary(dataset)
   })
 
-  # mass_express <- "μg / m ^ 3"
-
   output$pm2p5avg <- renderUI({
     HTML(paste("<h3>Current PM2.5:", pm2p5avg, "μg / m <sup>3</sup></h3>"))
   })
@@ -754,23 +833,33 @@ server <- function(input, output) {
     color1 <- rgb(0, 228, 0, max = 255)
   } else if (pm2p5avg < 35.5) {
     pm2p5_category <- "Moderate"
-    pm2p5_caution <- "Unusually sensitive people should consider reducing prolonged or heavy exertion."
+    pm2p5_caution <- "Unusually sensitive people should consider reducing \
+    prolonged or heavy exertion."
     color1 <- rgb(255, 255, 0, max = 255)
   } else if (pm2p5avg < 55.5) {
     pm2p5_category <- "Unhealthy for Sensitive Groups"
-    pm2p5_caution <- "People with heart or lung disease, older adults, children, and people of lower socioeconomic status should reduce prolonged or heavy exertion."
+    pm2p5_caution <- "People with heart or lung disease, older adults, children\
+    , and people of lower socioeconomic status should reduce prolonged or heavy\
+    exertion."
     color1 <- rgb(255, 126, 0, max = 255)
   } else if (pm2p5avg < 150.5) {
     pm2p5_category <- "Unhealthy"
-    pm2p5_caution <- "People with heart or lung disease, older adults, children, and people of lower socioeconomic status should avoid prolonged or heavy exertion; everyone else should reduce prolonged or heavy exertion."
+    pm2p5_caution <- "People with heart or lung disease, older adults, children\
+    , and people of lower socioeconomic status should avoid prolonged or heavy \
+    exertion; everyone else should reduce prolonged or heavy exertion."
     color1 <- rgb(255, 0, 0, max = 255)
   } else if (pm2p5avg < 250.5) {
     pm2p5_category <- "Very Unhealthy"
-    pm2p5_caution <- "People with heart or lung disease, older adults, children, and people of lower socioeconomic status should avoid all physical activity outdoors. Everyone else should avoid prolonged or heavy exertion."
+    pm2p5_caution <- "People with heart or lung disease, older adults, children\
+    , and people of lower socioeconomic status should avoid all physical \
+    activity outdoors. Everyone else should avoid prolonged or heavy exertion."
     color1 <- rgb(143, 63, 151, max = 255)
   } else if (pm2p5avg >= 250.5) {
     pm2p5_category <- "Hazardous"
-    pm2p5_caution <- "Everyone should avoid all physical activity outdoors; people with heart or lung disease, older adults, children, and people of lower socioeconomic status should remain indoors and keep activity levels low."
+    pm2p5_caution <- "Everyone should avoid all physical activity outdoors; \
+    people with heart or lung disease, older adults, children, and people of \
+    lower socioeconomic status should remain indoors and keep activity levels \
+    low."
     color1 <- rgb(126, 0, 35, max = 255)
   }
 
@@ -781,23 +870,34 @@ server <- function(input, output) {
     color2 <- rgb(0, 228, 0, max = 255)
   } else if (pm10avg < 155) {
     pm10_category <- "Moderate"
-    pm10_caution <- "Unusually sensitive people should consider reducing prolonged or heavy exertion."
+    pm10_caution <- "Unusually sensitive people should consider reducing \
+    prolonged or heavy exertion."
     color2 <- rgb(255, 255, 0, max = 255)
   } else if (pm10avg < 255) {
     pm10_category <- "Unhealthy for Sensitive Groups"
-    pm10_caution <- "People with heart or lung disease, older adults, children, and people of lower socioeconomic status should reduce prolonged or heavy exertion."
+    pm10_caution <- "People with heart or lung disease, older adults, \
+    children, and people of lower socioeconomic status should reduce prolonged \
+    or heavy exertion."
     color2 <- rgb(255, 126, 0, max = 255)
   } else if (pm10avg < 355) {
     pm10_category <- "Unhealthy"
-    pm10_caution <- "People with heart or lung disease, older adults, children, and people of lower socioeconomic status should avoid prolonged or heavy exertion; everyone else should reduce prolonged or heavy exertion."
+    pm10_caution <- "People with heart or lung disease, older adults, \
+    children, and people of lower socioeconomic status should avoid prolonged \
+    or heavy exertion; everyone else should reduce prolonged or heavy exertion."
     color2 <- rgb(255, 0, 0, max = 255)
   } else if (pm10avg < 425) {
     pm10_category <- "Very Unhealthy"
-    pm2p5_caution <- "People with heart or lung disease, older adults, children, and people of lower socioeconomic status should avoid all physical activity outdoors. Everyone else should avoid prolonged or heavy exertion."
+    pm2p5_caution <- "People with heart or lung disease, older adults, \
+    children, and people of lower socioeconomic status should avoid all \
+    physical activity outdoors. Everyone else should avoid prolonged or heavy \
+    exertion."
     color2 <- rgb(143, 63, 151, max = 255)
   } else if (pm10avg >= 425) {
     pm10_category <- "Hazardous"
-    pm10_caution <- "Everyone should avoid all physical activity outdoors; people with heart or lung disease, older adults, children, and people of lower socioeconomic status should remain indoors and keep activity levels low."
+    pm10_caution <- "Everyone should avoid all physical activity outdoors; \
+    people with heart or lung disease, older adults, children, and people of \
+    lower socioeconomic status should remain indoors and keep activity levels \
+    low."
     color2 <- rgb(126, 0, 35, max = 255)
   }
 
