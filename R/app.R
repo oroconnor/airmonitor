@@ -2,7 +2,6 @@
 # Version 1.1.0
 # This dashboard was built by Owen O'Connor and Tributary Data LLC
 # Questions? Email tributarydata@gmail.com
-
 library(shiny)
 library(shinythemes)
 library(httr)
@@ -14,9 +13,9 @@ library(plotly)
 library(lattice)
 
 
-# nowcast functions --------------------------------------------------------
+# Nowcast functions --------------------------------------------------------
 
-# hour_munge function
+# Hour Munge function
 
 
 # takes the last 12 hours of data and creates 12 hourly concentration averages
@@ -25,7 +24,7 @@ hour_munge <- function(
     # column timestamp, second column PM2.5, third column PM10
     df) {
   most_recent_time <- max(df$time) # calculate most recent time in dataset
-  # calculate 12 hours before that
+  # Calculate 12 hours before that
   twelve_hours_ago <- most_recent_time - hours(12)
 
   df <- df %>%
@@ -147,7 +146,7 @@ get_request <- function(url, api_key, params = NULL) {
 }
 
 
-# data_points=5000
+# Data Points equals 5000
 get_data <- function(serial_number, data_points = NULL, start_date = NULL,
                      end_date = NULL) {
   # this will save all the data
@@ -178,7 +177,7 @@ get_data <- function(serial_number, data_points = NULL, start_date = NULL,
 
   # for multiple page scrape we add a loop
   index <- 1
-  repeat{
+  repeat {
     response <- get_request(url = url, api_key = api_key, params = params)
     response_data <- content(response, "parsed", encoding = "UTF-8")
     main_data <- c(main_data, response_data$data)
@@ -227,7 +226,7 @@ get_raw_data <- function(serial_number, data_points = NULL, start_date = NULL,
 
   # for multiple page scrape we add a loop
   index <- 1
-  repeat{
+  repeat {
     response <- get_request(url = url, api_key = api_key, params = params)
     response_data <- content(response, "parsed", encoding = "UTF-8")
     main_raw_data <- c(main_raw_data, response_data$data)
@@ -321,7 +320,7 @@ generic_data_request <- function(token, user_id, params) {
   return(dataframe)
 }
 
-get_data_using_start_and_end_date <- function(token, user_id, logger,
+get_data_w_start_and_end_date <- function(token, user_id, logger,
                                               start_date_time, end_date_time) {
   #  authentication headers
   params <- list(
@@ -458,8 +457,6 @@ ui <- fluidPage(
   ),
 
   # Application title
-  # titlePanel("Kingston NY Air Quality"),
-
   titlePanel(
     div(
       column(
@@ -555,16 +552,14 @@ ui <- fluidPage(
               plotOutput("plot1", height = "275px"),
               htmlOutput("pm2p5avg"),
               textOutput("pm2p5_caution") %>%
-                tagAppendAttributes(class = "caution"),
-              # plotOutput("plot3") # windrose
+                tagAppendAttributes(class = "caution")
             ),
             column(
               6,
               plotOutput("plot2", height = "275px"),
               htmlOutput("pm10avg"),
               textOutput("pm10_caution") %>%
-                tagAppendAttributes(class = "caution"),
-              # plotlyOutput("plot4") # windspeed
+                tagAppendAttributes(class = "caution")
             )
           ), # End first fluidRow
           br(),
@@ -821,8 +816,6 @@ server <- function(input, output) {
       )
     summary(dataset)
   })
-
-  # mass_express <- "μg / m ^ 3"
 
   output$pm2p5avg <- renderUI({
     HTML(paste("<h3>Current PM2.5:", pm2p5avg, "μg / m <sup>3</sup></h3>"))
